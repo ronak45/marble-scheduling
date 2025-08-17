@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { addDays, endOfWeek, format, isAfter, isBefore, isSameDay, startOfDay, startOfWeek } from "date-fns"
+import { addDays, endOfWeek, format, isAfter, isBefore, isSameDay, parse, startOfDay, startOfWeek } from "date-fns"
 import { Calendar, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -69,7 +69,7 @@ export function AvailabilityResults() {
   const filterByDateRange = (items: Availability[]) => {
     const today = startOfDay(new Date())
     if (datePreset === "pick" && pickedDateParam) {
-      const d = new Date(pickedDateParam)
+      const d = parse(pickedDateParam, "yyyy-MM-dd", new Date())
       return items.filter((a) => isSameDay(new Date(a.startTime), d))
     }
     if (datePreset === "tomorrow") {
@@ -96,11 +96,17 @@ export function AvailabilityResults() {
     return items.filter((a) => isSameDay(new Date(a.startTime), today))
   }
 
+  const filterByInsurance = (items: Availability[]) => {
+    if (!insurance) return items
+    return items.filter((a) =>
+      a.therapist.insurancePayers.some((p) => p.id === insurance)
+    )
+  }
+
   const filterByTimeSegments = (items: Availability[]) => {
     if (selectedTimes.length === 0) return items
     const ranges = [
-      { id: "early", startHour: 6, endHour: 9 },
-      { id: "morning", startHour: 9, endHour: 12 },
+      { id: "morning", startHour: 6, endHour: 12 },
       { id: "afternoon", startHour: 12, endHour: 16 },
       { id: "evening", startHour: 16, endHour: 20 },
     ]
@@ -115,6 +121,8 @@ export function AvailabilityResults() {
 
   const filteredAvailabilities = useMemo(() => {
     let items = [...availabilities]
+    // Safety: enforce selected insurance on the client even though API filters it
+    items = filterByInsurance(items)
     items = filterByDateRange(items)
     items = filterByTimeSegments(items)
 
@@ -123,8 +131,22 @@ export function AvailabilityResults() {
       const firstDate = startOfDay(new Date(items[0].startTime))
       items = items.filter((a) => isSameDay(new Date(a.startTime), firstDate))
     }
-    return items
+    // Always sort ascending by start time
+    return items.sort((a, b) => +new Date(a.startTime) - +new Date(b.startTime))
   }, [availabilities, datePreset, pickedDateParam, timesParam, soonest])
+
+  // Compute the earliest available day that matches time-of-day filters (ignoring date filters)
+  const nextAvailableDayItems = useMemo(() => {
+    if (availabilities.length === 0) return [] as Availability[]
+    // Also ensure correct insurance
+    const byTime = filterByTimeSegments(filterByInsurance([...availabilities]))
+    if (byTime.length === 0) return [] as Availability[]
+    byTime.sort((a, b) => +new Date(a.startTime) - +new Date(b.startTime))
+    const firstDate = startOfDay(new Date(byTime[0].startTime))
+    return byTime
+      .filter((a) => isSameDay(new Date(a.startTime), firstDate))
+      .sort((a, b) => +new Date(a.startTime) - +new Date(b.startTime))
+  }, [availabilities, timesParam])
 
   if (!insurance) {
     return (
@@ -143,9 +165,67 @@ export function AvailabilityResults() {
   }
 
   if (filteredAvailabilities.length === 0) {
-    return (
-      <div className="mt-8 text-center text-muted-foreground">No availabilities match your filters</div>
-    )
+    if (nextAvailableDayItems.length > 0) {
+      const nextDate = new Date(nextAvailableDayItems[0].startTime)
+      return (
+        <div className="mt-8">
+          <h2 className="mb-1 text-sm font-medium text-muted-foreground">Next available</h2>
+          <div className="mb-3 text-base font-semibold">{format(nextDate, "EEEE, MMMM d, yyyy")}</div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {nextAvailableDayItems.map((availability) => (
+              <Card key={availability.id} className="overflow-hidden flex flex-col shadow-sm border-muted">
+                <CardHeader className="pb-3 bg-muted/10">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="border-2 border-background">
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        {availability.therapist.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-base truncate">{availability.therapist.name}</CardTitle>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="py-4 flex-1">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-primary flex-shrink-0" />
+                      <span className="text-sm font-medium">
+                        {format(new Date(availability.startTime), "EEEE, MMMM d, yyyy")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-primary flex-shrink-0" />
+                      <span className="text-sm">
+                        {format(new Date(availability.startTime), "h:mm a")} - {format(new Date(availability.endTime), "h:mm a")}
+                      </span>
+                    </div>
+                    <div className="mt-2">
+                      <div className="flex flex-wrap gap-1">
+                        {availability.therapist.insurancePayers.map((payer) => (
+                          <Badge key={payer.id} variant={payer.id === insurance ? "default" : "secondary"} className="text-xs">
+                            {payer.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="pt-2 pb-4">
+                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs p-2.5">
+                    Book Appointment
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )
+    }
+    return <div className="mt-8 text-center text-muted-foreground">No availabilities match your filters</div>
   }
 
   // Display all insurance payers the therapist accepts

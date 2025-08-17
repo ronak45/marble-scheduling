@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Search } from "lucide-react"
+import { Search, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
@@ -16,8 +16,19 @@ export function SearchForm() {
 
   const handleSearch = () => {
     if (!selectedInsurance) return
+    const np = new URLSearchParams(searchParams.toString())
+    np.set("insurance", selectedInsurance)
+    router.push(`/?${np.toString()}`)
+  }
 
-    router.push(`/?insurance=${selectedInsurance}`)
+  const handleReset = () => {
+    const np = new URLSearchParams(searchParams.toString())
+    // Keep insurance, reset date/time filters
+    np.set("datePreset", "today")
+    np.delete("date")
+    np.delete("times")
+    np.delete("soonest")
+    router.push(`/?${np.toString()}`)
   }
 
   return (
@@ -37,10 +48,16 @@ export function SearchForm() {
               <SelectItem value="kaiser">Kaiser Permanente</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={handleSearch} className="gap-2" disabled={!selectedInsurance}>
-            <Search className="h-4 w-4" />
-            Find Appointments
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={handleSearch} className="gap-2" disabled={!selectedInsurance}>
+              <Search className="h-4 w-4" />
+              Find Appointments
+            </Button>
+            <Button variant="ghost" className="gap-2" onClick={handleReset}>
+              <RotateCcw className="h-4 w-4" />
+              Reset filters
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

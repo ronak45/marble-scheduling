@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { addWeeks, endOfWeek, format, isSameDay, startOfDay, startOfWeek } from "date-fns"
+import { addWeeks, endOfWeek, format, parse, startOfDay, startOfWeek } from "date-fns"
 import { Calendar as CalendarIcon, Clock, Globe2 } from "lucide-react"
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -15,8 +15,7 @@ import { searchAvailabilities, type Availability } from "@/lib/api"
 type DatePreset = "today" | "tomorrow" | "this_week" | "next_week" | "pick"
 
 const TIME_SEGMENTS = [
-  { id: "early", label: "Early (6–9)", startHour: 6, endHour: 9 },
-  { id: "morning", label: "Morning (9–12)", startHour: 9, endHour: 12 },
+  { id: "morning", label: "Morning (6–12)", startHour: 6, endHour: 12 },
   { id: "afternoon", label: "Afternoon (12–4)", startHour: 12, endHour: 16 },
   { id: "evening", label: "Evening (4–8)", startHour: 16, endHour: 20 },
 ]
@@ -70,7 +69,7 @@ export function FilterBar() {
     [timesParam]
   )
 
-  const pickedDate = pickedDateParam ? new Date(pickedDateParam) : new Date()
+  const pickedDate = pickedDateParam ? parse(pickedDateParam, "yyyy-MM-dd", new Date()) : new Date()
 
   const updateParams = (next: Record<string, string | null>) => {
     const np = new URLSearchParams(params.toString())
@@ -131,7 +130,7 @@ export function FilterBar() {
   const twoWeekEnd = endOfWeek(addWeeks(twoWeekStart, 1), { weekStartsOn: 0 })
 
   return (
-    <div className="mt-4 flex flex-col gap-3">
+    <div className="mt-3 rounded-md border bg-muted/20 px-3 py-2">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm text-muted-foreground">Date</span>
         <ToggleGroup
@@ -147,7 +146,7 @@ export function FilterBar() {
           <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
             <PopoverTrigger asChild>
               <ToggleGroupItem value="pick" aria-label="Pick date">
-                <CalendarIcon className="h-4 w-4" /> Pick…
+                <CalendarIcon className="h-4 w-4" /> {datePreset === "pick" && pickedDateParam ? format(pickedDate, "EEE, MMM d") : "Pick Date"}
               </ToggleGroupItem>
             </PopoverTrigger>
             <PopoverContent align="start" className="w-auto p-0">
@@ -183,7 +182,7 @@ export function FilterBar() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className="text-sm text-muted-foreground">Time of day</span>
         <ToggleGroup
           type="multiple"
@@ -203,12 +202,6 @@ export function FilterBar() {
           <label htmlFor="soonest" className="text-sm">Next available</label>
         </div>
       </div>
-
-      {datePreset === "pick" && pickedDateParam && (
-        <div className="-mt-1 text-xs text-muted-foreground">
-          Selected date: {format(new Date(pickedDateParam), "EEE, MMM d")}
-        </div>
-      )}
 
       {!insurance && (
         <div className="text-xs text-muted-foreground">Select insurance to enable date calendar with availability.</div>
