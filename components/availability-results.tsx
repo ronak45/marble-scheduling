@@ -65,6 +65,8 @@ export function AvailabilityResults() {
   }, [insurance])
 
   const selectedTimes = useMemo(() => timesParam.split(",").filter(Boolean), [timesParam])
+  const timeStartParam = searchParams.get("timeStart")
+  const timeEndParam = searchParams.get("timeEnd")
 
   const filterByDateRange = (items: Availability[]) => {
     const today = startOfDay(new Date())
@@ -104,6 +106,14 @@ export function AvailabilityResults() {
   }
 
   const filterByTimeSegments = (items: Availability[]) => {
+    if (timeStartParam && timeEndParam) {
+      const startHour = parseInt(timeStartParam)
+      const endHour = parseInt(timeEndParam)
+      return items.filter((a) => {
+        const hour = new Date(a.startTime).getHours()
+        return hour >= startHour && hour < endHour
+      })
+    }
     if (selectedTimes.length === 0) return items
     const ranges = [
       { id: "morning", startHour: 6, endHour: 12 },

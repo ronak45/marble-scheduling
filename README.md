@@ -387,3 +387,11 @@ For additional help, refer to the official documentation:
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [SQLAlchemy Documentation](https://docs.sqlalchemy.org/)
 - [PostgreSQL Documentation](https://www.postgresql.org/docs/)
+
+
+## Additions with more time:
+1. Duration (if relevant): 30m • 45m • 60m.
+2. Time selector
+4. Refactor code to easily add new fields (like Therapist metadata)
+5. Location based (i.e. add distance filtering)
+6. Time-zone selector 

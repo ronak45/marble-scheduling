@@ -6,7 +6,6 @@ import { addWeeks, endOfWeek, format, parse, startOfDay, startOfWeek } from "dat
 import { Calendar as CalendarIcon, Clock, Globe2 } from "lucide-react"
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { Switch } from "@/components/ui/switch"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge"
@@ -28,7 +27,6 @@ export function FilterBar() {
   const datePreset = (params.get("datePreset") as DatePreset) || "today"
   const pickedDateParam = params.get("date")
   const timesParam = params.get("times") || ""
-  const soonestParam = params.get("soonest") === "true"
 
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [availabilities, setAvailabilities] = useState<Availability[]>([])
@@ -100,30 +98,6 @@ export function FilterBar() {
     updateParams({ times: values.join(",") })
   }
 
-  const handleSoonestToggle = (checked: boolean) => {
-    // If enabling, compute the soonest availability (respecting time segments if any)
-    if (checked && availabilities.length > 0) {
-      const filtered = availabilities
-        .filter((a) => {
-          if (selectedTimes.length === 0) return true
-          const hour = new Date(a.startTime).getHours()
-          return selectedTimes.some((id) => {
-            const seg = TIME_SEGMENTS.find((s) => s.id === id)
-            if (!seg) return false
-            return hour >= seg.startHour && hour < seg.endHour
-          })
-        })
-        .sort((a, b) => +new Date(a.startTime) - +new Date(b.startTime))
-
-      if (filtered.length > 0) {
-        const d = startOfDay(new Date(filtered[0].startTime))
-        updateParams({ soonest: "true", datePreset: "pick", date: format(d, "yyyy-MM-dd") })
-        return
-      }
-    }
-    // Otherwise, just set/unset soonest
-    updateParams({ soonest: checked ? "true" : "false" })
-  }
 
   // Calendar two-week window based on today
   const twoWeekStart = startOfWeek(new Date(), { weekStartsOn: 0 })
@@ -131,13 +105,13 @@ export function FilterBar() {
 
   return (
     <div className="mt-3 rounded-md border bg-muted/20 px-3 py-2">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 justify-start">
         <span className="text-sm text-muted-foreground">Date</span>
         <ToggleGroup
           type="single"
           value={datePreset}
           onValueChange={(v) => handlePresetChange((v as DatePreset) || datePreset)}
-          className="flex-1"
+          className="flex-1 justify-start"
         >
           <ToggleGroupItem value="today" aria-label="Today">Today</ToggleGroupItem>
           <ToggleGroupItem value="tomorrow" aria-label="Tomorrow">Tomorrow</ToggleGroupItem>
@@ -188,7 +162,7 @@ export function FilterBar() {
           type="multiple"
           value={selectedTimes}
           onValueChange={toggleTime}
-          className="flex-1"
+          className="flex-1 justify-start"
         >
           {TIME_SEGMENTS.map((seg) => (
             <ToggleGroupItem key={seg.id} value={seg.id} aria-label={seg.label}>
@@ -197,10 +171,7 @@ export function FilterBar() {
           ))}
         </ToggleGroup>
 
-        <div className="flex items-center gap-2 whitespace-nowrap">
-          <Switch checked={soonestParam} onCheckedChange={handleSoonestToggle} id="soonest" />
-          <label htmlFor="soonest" className="text-sm">Next available</label>
-        </div>
+        {/* Removed custom time picker */}
       </div>
 
       {!insurance && (
@@ -212,4 +183,4 @@ export function FilterBar() {
 
 export default FilterBar
 
-
+// Custom hours picker removed
